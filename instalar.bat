@@ -37,7 +37,7 @@ if not exist ".venv\Scripts\python.exe" (
 echo [2/3] Actualizando pip ...
 ".venv\Scripts\python.exe" -m pip install --upgrade pip
 echo [3/3] Instalando dependencias (puede tardar unos minutos) ...
-".venv\Scripts\python.exe" -m pip install -r requirements.txt
+".venv\Scripts\python.exe" -m pip install -r requirements.txt pytest
 if errorlevel 1 (
     echo [ERROR] Fallo la instalacion de dependencias. Revise su conexion a internet.
     pause

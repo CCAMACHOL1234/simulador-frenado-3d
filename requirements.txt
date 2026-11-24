@@ -1,7 +1,6 @@
 # Dependencias del Simulador de frenado 3D
-# Probado con: Python 3.13, streamlit 1.67.0, plotly 7.1.0, numpy 2.5.3, pandas 3.0.5
-streamlit>=1.50,<2
-plotly>=5.20
+# Streamlit fijado en 1.50.0: versión estable probada localmente y compatible con Streamlit Community Cloud.
+streamlit==1.50.0
+plotly>=5.20,<8
 numpy>=1.26
 pandas>=2.1
-pytest>=8.0
