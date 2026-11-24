@@ -1,0 +1,5 @@
+ensayo;repeticion;theta_deg;masa_kg;v0_m_s;modelo;mu_ef;Fb_N;d_exp_m;t_exp_s;observaciones
+EJEMPLO-A2;1;5,0;0,350;0,95;A;0,30;;0,23;0,47;FICTICIO - solo muestra el formato, NO es una medicion
+EJEMPLO-A2;2;5,0;0,350;0,92;A;0,30;;0,21;0,45;FICTICIO - solo muestra el formato, NO es una medicion
+EJEMPLO-A2;3;5,0;0,350;0,97;A;0,30;;0,24;0,48;FICTICIO - solo muestra el formato, NO es una medicion
+EJEMPLO-C3;1;5,0;0,350;0,90;B;;1,50;0,13;0,30;FICTICIO - solo muestra el formato, NO es una medicion

@@ -1,0 +1,15 @@
+[server]
+enableStaticServing = true
+headless = false
+runOnSave = false
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"
+primaryColor = "#1f6fd1"
+backgroundColor = "#f3f6fa"
+secondaryBackgroundColor = "#e6edf6"
+textColor = "#0b2545"
+font = "sans serif"

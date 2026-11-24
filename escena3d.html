@@ -1,0 +1,1022 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maqueta 3D — Frenado en pendiente</title>
+<style>
+  :root{
+    --navy:#0b2545; --navy2:#13315c; --azul:#1f6fd1; --celeste:#8db3e2; --gris:#5f6b7a;
+    --borde:#d6dfeb; --fondo:#eef3f9; --blanco:#ffffff;
+    --verde:#2e9d5b; --naranja:#ef7d1a; --rojo:#d63a3a; --morado:#8e44ad;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--fondo);font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;color:var(--navy);overflow:hidden}
+  #app{display:flex;flex-direction:column;height:100vh;width:100vw}
+  #vista{position:relative;flex:1 1 auto;min-height:260px;overflow:hidden;border-radius:10px 10px 0 0;background:linear-gradient(#dfe8f3,#f6f8fb)}
+  #lienzo{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+  #lienzo:active{cursor:grabbing}
+  #etiquetas{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+  .lbl{position:absolute;transform:translate(-50%,-100%);white-space:nowrap;font-size:11px;font-weight:600;
+       padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.88);border:1px solid var(--borde);color:var(--navy);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  .lbl.zona{font-size:10.5px;letter-spacing:.03em;background:rgba(19,49,92,.85);color:#fff;border-color:rgba(19,49,92,.85)}
+  .lbl.f{background:rgba(255,255,255,.93);font-size:11px}
+  .lbl.oscuro{background:rgba(11,37,69,.9);color:#fff;border-color:rgba(11,37,69,.9)}
+  .hud{position:absolute;background:rgba(11,37,69,.88);color:#fff;border-radius:10px;padding:10px 12px;box-shadow:0 4px 16px rgba(11,37,69,.25);backdrop-filter:blur(3px)}
+  #hudDatos{top:10px;left:10px;min-width:220px}
+  #estado{display:inline-block;font-weight:700;font-size:13px;letter-spacing:.04em;padding:4px 10px;border-radius:999px;background:#5f6b7a;margin-bottom:8px;text-transform:uppercase}
+  .fila{display:flex;justify-content:space-between;gap:14px;font-size:12.5px;line-height:1.55}
+  .fila span:first-child{color:#b9cde6}
+  .fila span:last-child{font-variant-numeric:tabular-nums;font-weight:600}
+  .sep{height:1px;background:rgba(255,255,255,.15);margin:5px 0}
+  #hudCam{top:10px;right:10px;display:flex;flex-direction:column;gap:6px;padding:8px}
+  #hudCam .grupo{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+  #hudCam .tit{font-size:10px;color:#b9cde6;text-transform:uppercase;letter-spacing:.08em;text-align:right}
+  button{font-family:inherit;font-size:12px;font-weight:600;border:1px solid transparent;border-radius:7px;padding:6px 10px;cursor:pointer;
+         background:#fff;color:var(--navy);transition:background .15s,border-color .15s}
+  button:hover{border-color:var(--azul)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .hud button{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.18)}
+  .hud button:hover{background:rgba(255,255,255,.2)}
+  .hud button.on{background:var(--azul);border-color:var(--azul)}
+  #leyenda{bottom:10px;right:10px;font-size:11.5px;padding:8px 10px;display:none}
+  #leyenda .it{display:flex;align-items:center;gap:7px;line-height:1.6}
+  #leyenda .sw{width:22px;height:4px;border-radius:2px}
+  #leyenda .sw.dash{background-image:linear-gradient(90deg,currentColor 55%,transparent 45%)!important;background-size:7px 4px;background-color:transparent!important}
+  #aviso{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);max-width:70%;background:rgba(214,58,58,.95);color:#fff;font-size:12px;
+         padding:7px 12px;border-radius:8px;display:none;text-align:center;box-shadow:0 3px 10px rgba(0,0,0,.2)}
+  #barra{flex:0 0 auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;background:var(--navy);color:#fff}
+  #barra button{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.2)}
+  #barra button:hover{background:rgba(255,255,255,.18)}
+  #barra button.prim{background:var(--azul);border-color:var(--azul)}
+  #tiempo{flex:1 1 220px;min-width:160px;accent-color:#8db3e2}
+  #tlbl{font-variant-numeric:tabular-nums;font-size:12px;min-width:120px;text-align:right}
+  #vel{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:7px;padding:5px 6px;font-family:inherit;font-size:12px}
+  #vel option{color:#0b2545}
+  #graficas{flex:0 0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px;background:#fff;border-radius:0 0 10px 10px;border-top:1px solid var(--borde)}
+  .gwrap{position:relative;border:1px solid var(--borde);border-radius:8px;background:#fbfcfe;height:150px}
+  .gwrap canvas{width:100%;height:100%;display:block;cursor:crosshair}
+  #carga{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--gris)}
+  @media (max-width:760px){
+    #graficas{grid-template-columns:1fr}
+    .gwrap{height:120px}
+    #hudDatos{min-width:170px;padding:7px 9px}
+    .fila{font-size:11px}
+    #hudCam{max-width:46%}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="vista">
+    <div id="carga">Cargando maqueta 3D…</div>
+    <canvas id="lienzo"></canvas>
+    <div id="etiquetas"></div>
+    <div class="hud" id="hudDatos">
+      <div id="estado">Preparado</div>
+      <div class="fila"><span>Tiempo t</span><span id="vT">0,000 s</span></div>
+      <div class="fila"><span>Posición x (pista)</span><span id="vX">—</span></div>
+      <div class="fila"><span>Recorrido en frenado</span><span id="vD">—</span></div>
+      <div class="fila"><span>Velocidad v</span><span id="vV">—</span></div>
+      <div class="fila"><span>Aceleración a</span><span id="vA">—</span></div>
+      <div class="fila"><span>Fuerza resistente</span><span id="vF">—</span></div>
+      <div class="sep"></div>
+      <div class="fila"><span>θ · pendiente</span><span id="vTh">—</span></div>
+      <div class="fila"><span>Masa · modelo</span><span id="vM">—</span></div>
+    </div>
+    <div class="hud" id="hudCam">
+      <div class="tit">Cámara</div>
+      <div class="grupo">
+        <button data-cam="lateral">Lateral</button>
+        <button data-cam="superior">Superior</button>
+        <button data-cam="libre">Libre</button>
+        <button data-cam="seguir">Seguir</button>
+      </div>
+      <div class="tit">Visualización</div>
+      <div class="grupo">
+        <button id="bFuerzas">Mostrar fuerzas</button>
+        <button id="bEtiq" class="on">Etiquetas</button>
+      </div>
+    </div>
+    <div class="hud" id="leyenda"></div>
+    <div id="aviso"></div>
+  </div>
+  <div id="barra">
+    <button id="bIniciar" class="prim" title="Iniciar desde t = 0">▶ Iniciar</button>
+    <button id="bPausa" title="Pausar / Reanudar (barra espaciadora)">⏸ Pausar</button>
+    <button id="bReiniciar" title="Volver a t = 0">⏮ Reiniciar</button>
+    <button id="bOtra" title="Reiniciar y reproducir de nuevo">↻ Simular nuevamente</button>
+    <input id="tiempo" type="range" min="0" max="1000" step="1" value="0" aria-label="Barra temporal">
+    <span id="tlbl">0,000 / 0,000 s</span>
+    <label for="vel" style="font-size:12px;color:#b9cde6">Velocidad</label>
+    <select id="vel">
+      <option value="0.1">0,1×</option>
+      <option value="0.25">0,25×</option>
+      <option value="0.5">0,5×</option>
+      <option value="1" selected>1×</option>
+      <option value="2">2×</option>
+    </select>
+  </div>
+  <div id="graficas">
+    <div class="gwrap"><canvas id="gX"></canvas></div>
+    <div class="gwrap"><canvas id="gV"></canvas></div>
+    <div class="gwrap"><canvas id="gA"></canvas></div>
+  </div>
+</div>
+
+<script>
+/* Datos generados por fisica.py (Python es la fuente de verdad). */
+window.DATOS = /*__DATOS__*/null;
+</script>
+<script type="module">
+// ---------------------------------------------------------------------------
+// Carga de Three.js: primero la copia local servida por Streamlit
+// (static/vendor), luego CDN como respaldo.
+// ---------------------------------------------------------------------------
+async function cargarThree() {
+  // 1) Copia local servida por Streamlit (static/vendor). La ruta se resuelve
+  //    respecto a la página de la app, así funciona en localhost:8501 y en
+  //    Streamlit Community Cloud (donde la app vive bajo /~/+/).
+  // 2) Respaldo por CDN (jsDelivr, luego unpkg).
+  const REL = 'app/static/vendor/three.module.min.js';
+  const bases = [];
+  try { bases.push(window.parent.location.href); } catch (e) {}
+  try { bases.push(document.baseURI); } catch (e) {}
+  try { bases.push(window.location.href); } catch (e) {}
+  const locales = [];
+  for (const b of bases) { try { const u = new URL(REL, b).href; if (u.startsWith('http') && !locales.includes(u)) locales.push(u); } catch (e) {} }
+  locales.push('/' + REL);
+  for (const u of locales) {
+    try {
+      const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 10000);
+      const r = await fetch(u, {cache: 'force-cache', signal: ctl.signal}); clearTimeout(tm);
+      if (!r.ok) continue;
+      const txt = await r.text();
+      if (!txt.includes('WebGLRenderer')) continue;
+      const url = URL.createObjectURL(new Blob([txt], {type: 'text/javascript'}));
+      const mod = await import(url);
+      console.info('Three.js cargado desde', u);
+      return mod;
+    } catch (e) { /* probar siguiente */ }
+  }
+  const cdns = ['https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js',
+                'https://unpkg.com/three@0.160.0/build/three.module.min.js'];
+  for (const u of cdns) {
+    try { const mod = await import(u); console.info('Three.js cargado desde', u); return mod; } catch (e) {}
+  }
+  throw new Error('Three.js no disponible');
+}
+
+const D = window.DATOS;
+const $ = (id) => document.getElementById(id);
+const fmt = (v, d = 3) => (v === null || v === undefined || !isFinite(v)) ? '—' : Number(v).toFixed(d).replace('.', ',').replace(/^-/, '−');
+const fmtS = (v, d = 3) => (v > 0 ? '+' : '') + fmt(v, d);
+
+function almacen(tipo) { try { return window[tipo]; } catch (e) { return null; } }
+function leer(k, def) { try { const s = almacen('localStorage'); const v = s && s.getItem('simfren_' + k); return v === null || v === undefined ? def : JSON.parse(v); } catch (e) { return def; } }
+function guardar(k, v) { try { const s = almacen('localStorage'); s && s.setItem('simfren_' + k, JSON.stringify(v)); } catch (e) {} }
+function leerS(k, def) { try { const s = almacen('sessionStorage'); const v = s && s.getItem('simfren_' + k); return v === null || v === undefined ? def : JSON.parse(v); } catch (e) { return def; } }
+function guardarS(k, v) { try { const s = almacen('sessionStorage'); s && s.setItem('simfren_' + k, JSON.stringify(v)); } catch (e) {} }
+
+if (!D) {
+  $('carga').textContent = 'Sin datos de simulación.';
+  throw new Error('sin datos');
+}
+
+let THREE;
+try { THREE = await cargarThree(); }
+catch (e) {
+  $('carga').innerHTML = 'No se pudo cargar Three.js (ni local ni por CDN).<br>Revise la carpeta static/vendor.';
+  throw e;
+}
+
+// ---------------------------------------------------------------------------
+// Constantes geométricas (m)
+// ---------------------------------------------------------------------------
+const G = D.geo;
+const L = G.L_total, ANCHO = G.ancho;
+const ESP = 0.015;                 // espesor del tablero de la pista
+const Y_TOP = ESP;                 // superficie en coordenadas locales de la pista
+const BISAGRA_Y = 0.015 + 0.007;   // altura del eje de la bisagra sobre la mesa
+const BISAGRA_X = 0.86;            // posición mundial de la bisagra (extremo bajo)
+const LARGO_C = G.largo_carro;
+const R_RUEDA = 0.022;
+const U_SOPORTE = -L + 0.07;       // soporte a 7 cm del extremo alto
+const TH = D.theta_deg * Math.PI / 180;
+const tray = D.tray;
+const N = tray.t.length;
+const T_TOTAL = tray.t[N - 1];
+
+// ---------------------------------------------------------------------------
+// Renderizador, escena y luces
+// ---------------------------------------------------------------------------
+const lienzo = $('lienzo');
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({canvas: lienzo, antialias: true, preserveDrawingBuffer: false});
+} catch (e) {
+  $('carga').textContent = 'Este navegador no soporta WebGL.';
+  throw e;
+}
+$('carga').style.display = 'none';
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xe6edf5);
+scene.fog = new THREE.Fog(0xe6edf5, 4, 11);
+
+const camera = new THREE.PerspectiveCamera(35, 1, 0.01, 50);
+
+scene.add(new THREE.HemisphereLight(0xf4f8ff, 0x8a7a66, 0.85));
+const sol = new THREE.DirectionalLight(0xffffff, 2.1);
+sol.position.set(-1.2, 3.2, 2.0);
+sol.castShadow = true;
+sol.shadow.mapSize.set(2048, 2048);
+sol.shadow.camera.left = -1.6; sol.shadow.camera.right = 1.6;
+sol.shadow.camera.top = 1.2; sol.shadow.camera.bottom = -1.2;
+sol.shadow.camera.near = 0.5; sol.shadow.camera.far = 8;
+sol.shadow.bias = -0.0004;
+sol.shadow.radius = 4;
+scene.add(sol);
+const relleno = new THREE.DirectionalLight(0xcfe0ff, 0.55);
+relleno.position.set(2, 1.5, -2);
+scene.add(relleno);
+
+// ---------------------------------------------------------------------------
+// Texturas procedurales (sin archivos externos)
+// ---------------------------------------------------------------------------
+function texCanvas(w, h, dibujar, rx = 1, ry = 1) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'); dibujar(g, w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry);
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+function ruido(g, w, h, n, alfa, oscuro = true) {
+  for (let i = 0; i < n; i++) {
+    const v = oscuro ? 0 : 255;
+    g.fillStyle = `rgba(${v},${v},${v},${Math.random() * alfa})`;
+    g.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 2, 1 + Math.random() * 2);
+  }
+}
+const texMDF = texCanvas(1024, 256, (g, w, h) => {
+  g.fillStyle = '#b98d62'; g.fillRect(0, 0, w, h);
+  ruido(g, w, h, 26000, 0.10); ruido(g, w, h, 9000, 0.08, false);
+  for (let i = 0; i < 40; i++) { g.strokeStyle = `rgba(110,72,40,${0.03 + Math.random() * 0.05})`; g.lineWidth = 1 + Math.random() * 2;
+    const y = Math.random() * h; g.beginPath(); g.moveTo(0, y); g.bezierCurveTo(w * .3, y + 6, w * .6, y - 6, w, y + 3); g.stroke(); }
+});
+const texBase = texCanvas(1024, 256, (g, w, h) => {
+  g.fillStyle = '#d2b48c'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 70; i++) { g.strokeStyle = `rgba(140,98,57,${0.05 + Math.random() * 0.08})`; g.lineWidth = 1 + Math.random() * 2.5;
+    const y = Math.random() * h; g.beginPath(); g.moveTo(0, y);
+    g.bezierCurveTo(w * .25, y + 10 * Math.random(), w * .7, y - 10 * Math.random(), w, y + 4); g.stroke(); }
+  ruido(g, w, h, 12000, 0.06);
+});
+const texListon = texCanvas(512, 64, (g, w, h) => {
+  g.fillStyle = '#9b6b40'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 25; i++) { g.strokeStyle = `rgba(70,40,20,${0.08 + Math.random() * 0.1})`; g.lineWidth = 1 + Math.random() * 2;
+    const y = Math.random() * h; g.beginPath(); g.moveTo(0, y); g.lineTo(w, y + (Math.random() - .5) * 6); g.stroke(); }
+});
+const texFriccion = texCanvas(256, 256, (g, w, h) => {
+  g.fillStyle = '#e0892f'; g.fillRect(0, 0, w, h);
+  g.strokeStyle = 'rgba(150,70,10,.55)'; g.lineWidth = 10;
+  for (let i = -h; i < w + h; i += 32) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + h, h); g.stroke(); }
+  ruido(g, w, h, 9000, 0.25); ruido(g, w, h, 4000, 0.18, false);
+}, 6, 1);
+const texSeguridad = texCanvas(256, 256, (g, w, h) => {
+  g.fillStyle = '#c7ced8'; g.fillRect(0, 0, w, h);
+  g.strokeStyle = 'rgba(90,100,115,.35)'; g.lineWidth = 6;
+  for (let i = -h; i < w + h; i += 40) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + h, h); g.stroke(); }
+}, 2, 2);
+const texRosca = texCanvas(32, 256, (g, w, h) => {
+  g.fillStyle = '#c9ced6'; g.fillRect(0, 0, w, h);
+  g.fillStyle = 'rgba(60,65,75,.5)'; for (let y = 0; y < h; y += 8) g.fillRect(0, y, w, 3);
+}, 1, 6);
+// Cinta métrica (marcas cada cm, números cada 10 cm)
+const PXM = 2200;
+const texCinta = texCanvas(Math.round(L * PXM), 64, (g, w, h) => {
+  g.fillStyle = '#f3c623'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#1b1b1b'; g.font = 'bold 26px Segoe UI, Arial'; g.textBaseline = 'bottom';
+  for (let cm = 0; cm <= Math.round(L * 100); cm++) {
+    const x = Math.round(cm / 100 * PXM);
+    const largo = cm % 10 === 0 ? 34 : (cm % 5 === 0 ? 24 : 14);
+    g.fillRect(Math.min(x, w - 3), 0, cm % 10 === 0 ? 3 : 2, largo);
+    if (cm % 10 === 0 && cm > 0 && cm < L * 100) { g.textAlign = 'center'; g.fillText(String(cm), x, h - 2); }
+  }
+});
+texCinta.wrapS = texCinta.wrapT = THREE.ClampToEdgeWrapping;
+// Mapa alfa para flechas discontinuas (componentes del peso)
+const texGuion = texCanvas(4, 32, (g, w, h) => { g.fillStyle = '#000'; g.fillRect(0, 0, w, h); g.fillStyle = '#fff'; g.fillRect(0, 0, w, h * 0.6); });
+
+// ---------------------------------------------------------------------------
+// Materiales
+// ---------------------------------------------------------------------------
+const M = {
+  mdf: new THREE.MeshStandardMaterial({map: texMDF, roughness: 0.85}),
+  base: new THREE.MeshStandardMaterial({map: texBase, roughness: 0.8}),
+  liston: new THREE.MeshStandardMaterial({map: texListon, roughness: 0.75}),
+  metal: new THREE.MeshStandardMaterial({color: 0xb8bfc8, metalness: 0.85, roughness: 0.32}),
+  rosca: new THREE.MeshStandardMaterial({map: texRosca, metalness: 0.8, roughness: 0.35}),
+  caucho: new THREE.MeshStandardMaterial({color: 0x1d1f22, roughness: 0.92}),
+  espuma: new THREE.MeshStandardMaterial({color: 0x2b3442, roughness: 0.95}),
+  friccion: new THREE.MeshStandardMaterial({map: texFriccion, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2}),
+  seguridad: new THREE.MeshStandardMaterial({map: texSeguridad, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2}),
+  cinta: new THREE.MeshStandardMaterial({map: texCinta, roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -2}),
+  carro: new THREE.MeshPhysicalMaterial({color: 0x1d5fc4, metalness: 0.35, roughness: 0.3, clearcoat: 0.8, clearcoatRoughness: 0.2}),
+  vidrio: new THREE.MeshStandardMaterial({color: 0x182533, metalness: 0.6, roughness: 0.12}),
+  rin: new THREE.MeshStandardMaterial({color: 0xd9dde3, metalness: 0.9, roughness: 0.25}),
+  patin: new THREE.MeshStandardMaterial({color: 0x8a5a2b, roughness: 0.95, emissive: 0xff5a00, emissiveIntensity: 0}),
+  lamina: new THREE.MeshStandardMaterial({color: 0x7d8794, metalness: 0.5, roughness: 0.45}),
+  faro: new THREE.MeshStandardMaterial({color: 0xfff6d5, emissive: 0xfff2c0, emissiveIntensity: 0.4}),
+  stop: new THREE.MeshStandardMaterial({color: 0x7a1010, emissive: 0xff1a1a, emissiveIntensity: 0.15}),
+  mesa: new THREE.MeshStandardMaterial({color: 0xdfe4ea, roughness: 0.95}),
+};
+function caja(w, h, d, mat, sombra = true) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.castShadow = sombra; m.receiveShadow = true; return m;
+}
+
+// ---------------------------------------------------------------------------
+// Mesa, base y bisagra
+// ---------------------------------------------------------------------------
+const mesa = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), M.mesa);
+mesa.rotation.x = -Math.PI / 2; mesa.receiveShadow = true; scene.add(mesa);
+const rejilla = new THREE.GridHelper(8, 80, 0xb9c5d4, 0xcfd8e3);
+rejilla.position.y = 0.0005; rejilla.material.transparent = true; rejilla.material.opacity = 0.55; scene.add(rejilla);
+
+const BASE_LARGO = 2.0, BASE_X = BISAGRA_X - 0.9;
+const base = caja(BASE_LARGO, 0.015, 0.40, M.base);
+base.position.set(BASE_X - 0.02, 0.0075, 0); scene.add(base);
+
+const bisagra = new THREE.Group();
+for (const z of [-0.1, 0.1]) {
+  const barril = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.05, 20), M.metal);
+  barril.rotation.x = Math.PI / 2; barril.position.set(BISAGRA_X, BISAGRA_Y, z); barril.castShadow = true;
+  const hoja = caja(0.035, 0.002, 0.05, M.metal); hoja.position.set(BISAGRA_X + 0.015, 0.016, z);
+  bisagra.add(barril, hoja);
+}
+scene.add(bisagra);
+
+// ---------------------------------------------------------------------------
+// Pista inclinable (grupo que gira alrededor de la bisagra)
+// Coordenadas locales: u = x − L  (x medido desde el extremo alto, + descenso)
+// ---------------------------------------------------------------------------
+const pivote = new THREE.Group();
+pivote.position.set(BISAGRA_X, BISAGRA_Y, 0);
+scene.add(pivote);
+const U = (x) => x - L;
+
+const tablero = caja(L, ESP, ANCHO, M.mdf);
+tablero.position.set(-L / 2, ESP / 2, 0); pivote.add(tablero);
+
+// Guías laterales (listones)
+const ALTO_G = 0.03, ANCHO_G = 0.02;
+const zGuia = ANCHO / 2 - ANCHO_G / 2;
+for (const s of [-1, 1]) {
+  const g = caja(L, ALTO_G, ANCHO_G, M.liston);
+  g.position.set(-L / 2, Y_TOP + ALTO_G / 2, s * zGuia); pivote.add(g);
+}
+// Cinta métrica en la cara exterior de la guía cercana y sobre la pista
+const cintaLat = new THREE.Mesh(new THREE.PlaneGeometry(L, 0.024), M.cinta);
+cintaLat.position.set(-L / 2, Y_TOP + ALTO_G / 2, ANCHO / 2 + 0.0008); pivote.add(cintaLat);
+const cintaSup = new THREE.Mesh(new THREE.PlaneGeometry(L, 0.022), M.cinta);
+cintaSup.rotation.x = -Math.PI / 2;
+cintaSup.position.set(-L / 2, Y_TOP + 0.0006, ANCHO / 2 - ANCHO_G - 0.014); cintaSup.receiveShadow = true; pivote.add(cintaSup);
+
+// Franjas de zona (borde lejano) — acel. azul, frenado naranja, seguridad gris
+function franja(x0, x1, z, ancho, mat) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, ancho), mat);
+  m.rotation.x = -Math.PI / 2; m.position.set(U((x0 + x1) / 2), Y_TOP + 0.0006, z); m.receiveShadow = true; pivote.add(m); return m;
+}
+const zBanda = -(ANCHO / 2 - ANCHO_G - 0.014);
+franja(0, G.x_ini_fren, zBanda, 0.022, new THREE.MeshStandardMaterial({color: 0x2f7de1, roughness: .7, polygonOffset: true, polygonOffsetFactor: -2}));
+franja(G.x_ini_fren, G.x_fin_fren, zBanda, 0.022, new THREE.MeshStandardMaterial({color: 0xef7d1a, roughness: .7, polygonOffset: true, polygonOffsetFactor: -2}));
+franja(G.x_fin_fren, L, zBanda, 0.022, new THREE.MeshStandardMaterial({color: 0x7b8794, roughness: .7, polygonOffset: true, polygonOffsetFactor: -2}));
+// Tira de fricción central (donde roza el patín)
+const tFric = franja(G.x_ini_fren, G.x_fin_fren, 0, 0.10, M.friccion);
+texFriccion.repeat.set(Math.max(1, G.L_fren / 0.1), 1);
+// Zona de seguridad
+franja(G.x_fin_fren, L - G.espesor_tope, 0, ANCHO - 2 * ANCHO_G - 0.075, M.seguridad);
+
+// Tope final acolchado
+const tope = new THREE.Group();
+const espuma = caja(G.espesor_tope, 0.05, ANCHO - 2 * ANCHO_G, M.espuma);
+espuma.position.set(U(L - G.espesor_tope / 2), Y_TOP + 0.025, 0);
+const placaTope = caja(0.008, 0.06, ANCHO, M.liston);
+placaTope.position.set(U(L) - 0.004 + 0.008, Y_TOP + 0.03, 0);
+tope.add(espuma, placaTope); pivote.add(tope);
+
+// Líneas de referencia transversales (inicio, inicio de frenado, detención)
+function lineaTransversal(x, color, alto = 0.004) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.006, alto, ANCHO - 2 * ANCHO_G), new THREE.MeshStandardMaterial({color, emissive: color, emissiveIntensity: 0.35}));
+  m.position.set(U(x), Y_TOP + alto / 2, 0); pivote.add(m); return m;
+}
+const lInicio = lineaTransversal(D.eventos.x_inicio, 0x2e9d5b);
+const lFreno = lineaTransversal(G.x_ini_fren, 0xef7d1a);
+lineaTransversal(G.x_fin_fren, 0x9aa5b4, 0.002);
+let lDet = null, pinDet = null;
+if (D.eventos.x_det !== null && D.eventos.x_det !== undefined) {
+  lDet = lineaTransversal(D.eventos.x_det, 0xd63a3a, 0.005);
+  pinDet = new THREE.Group();
+  const palo = new THREE.Mesh(new THREE.CylinderGeometry(0.002, 0.002, 0.13, 8), M.metal);
+  palo.position.y = 0.065;
+  const bandera = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.03, 16), new THREE.MeshStandardMaterial({color: 0xd63a3a, emissive: 0xd63a3a, emissiveIntensity: .3}));
+  bandera.rotation.z = Math.PI; bandera.position.y = 0.145;
+  pinDet.add(palo, bandera);
+  pinDet.position.set(U(D.eventos.x_det), Y_TOP, -(ANCHO / 2 - ANCHO_G) + 0.01);
+  pinDet.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  pivote.add(pinDet);
+}
+// Bandera de inicio
+const pinIni = new THREE.Group();
+{
+  const palo = new THREE.Mesh(new THREE.CylinderGeometry(0.002, 0.002, 0.11, 8), M.metal); palo.position.y = 0.055;
+  const b = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.018, 0.002), new THREE.MeshStandardMaterial({color: 0x2e9d5b, side: THREE.DoubleSide}));
+  b.position.set(0.016, 0.1, 0);
+  pinIni.add(palo, b); pinIni.position.set(U(D.eventos.x_inicio), Y_TOP, -(ANCHO / 2 - ANCHO_G) + 0.01);
+  pivote.add(pinIni);
+}
+
+// Recorrido realizado (franjas que crecen con el movimiento)
+const matRecAcel = new THREE.MeshBasicMaterial({color: 0x2f7de1, transparent: true, opacity: 0.35, depthWrite: false});
+const matRecFren = new THREE.MeshBasicMaterial({color: 0xd63a3a, transparent: true, opacity: 0.38, depthWrite: false});
+const recAcel = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.035), matRecAcel);
+const recFren = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.035), matRecFren);
+for (const r of [recAcel, recFren]) { r.rotation.x = -Math.PI / 2; r.position.set(0, Y_TOP + 0.0012, -0.075); r.visible = false; pivote.add(r); }
+function franjaRecorrido(m, x0, x1) {
+  if (x1 - x0 < 1e-4) { m.visible = false; return; }
+  m.visible = true; m.scale.x = x1 - x0; m.position.x = U((x0 + x1) / 2);
+}
+
+// Travesaño bajo la pista donde apoya el soporte
+const travesano = caja(0.03, 0.012, ANCHO, M.liston);
+travesano.position.set(U_SOPORTE, -0.006, 0); pivote.add(travesano);
+
+// ---------------------------------------------------------------------------
+// Soporte ajustable (varillas roscadas) — se recalcula con θ
+// ---------------------------------------------------------------------------
+const soporte = new THREE.Group(); scene.add(soporte);
+const varillas = [], tuercas = [];
+for (const z of [-0.11, 0.11]) {
+  const v = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, 1, 16), M.rosca);
+  v.castShadow = true; v.userData.z = z; soporte.add(v); varillas.push(v);
+  const t = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.007, 6), M.metal);
+  t.castShadow = true; soporte.add(t); tuercas.push(t);
+  const placa = caja(0.04, 0.004, 0.04, M.metal); placa.position.set(0, 0.017, z); placa.userData.base = true; soporte.add(placa);
+}
+function actualizarSoporte(th) {
+  pivote.rotation.z = -th;
+  pivote.updateMatrixWorld(true);
+  const p = new THREE.Vector3(U_SOPORTE, -0.012, 0); pivote.localToWorld(p);
+  const yb = 0.019, h = Math.max(p.y - yb, 0.001);
+  varillas.forEach((v, i) => { v.scale.y = h; v.position.set(p.x, yb + h / 2, v.userData.z); v.visible = h > 0.004; });
+  tuercas.forEach((t, i) => { t.position.set(p.x, Math.max(p.y - 0.004, yb + 0.004), varillas[i].userData.z); });
+  soporte.children.forEach(o => { if (o.userData.base) o.position.x = p.x; });
+  actualizarArco(th);
+}
+
+// Indicador de ángulo: línea horizontal de referencia y arco
+const zArco = ANCHO / 2 + 0.03;
+const matArco = new THREE.LineBasicMaterial({color: 0xd63a3a});
+const arco = new THREE.Line(new THREE.BufferGeometry(), matArco); scene.add(arco);
+const refH = new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+  new THREE.Vector3(BISAGRA_X, BISAGRA_Y + Y_TOP, zArco), new THREE.Vector3(BISAGRA_X - 0.55, BISAGRA_Y + Y_TOP, zArco)]),
+  new THREE.LineDashedMaterial({color: 0x5f6b7a, dashSize: 0.02, gapSize: 0.012}));
+refH.computeLineDistances(); scene.add(refH);
+const refP = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({color: 0xd63a3a})); scene.add(refP);
+const R_ARCO = 0.42;
+function actualizarArco(th) {
+  const pts = [];
+  const n = 32;
+  for (let i = 0; i <= n; i++) { const a = Math.PI - th * i / n; pts.push(new THREE.Vector3(BISAGRA_X + R_ARCO * Math.cos(a), BISAGRA_Y + Y_TOP + R_ARCO * Math.sin(a), zArco)); }
+  arco.geometry.dispose(); arco.geometry = new THREE.BufferGeometry().setFromPoints(pts);
+  refP.geometry.dispose(); refP.geometry = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(BISAGRA_X, BISAGRA_Y + Y_TOP, zArco),
+    new THREE.Vector3(BISAGRA_X - 0.55 * Math.cos(th), BISAGRA_Y + Y_TOP + 0.55 * Math.sin(th), zArco)]);
+}
+
+// ---------------------------------------------------------------------------
+// Vehículo a escala
+// ---------------------------------------------------------------------------
+const carro = new THREE.Group();
+const ruedas = [];
+const Y_CUERPO = R_RUEDA - 0.008;   // base de la carrocería sobre la pista
+{
+  const perfil = new THREE.Shape();
+  const P = [[-0.09, 0.006], [-0.09, 0.034], [-0.066, 0.038], [-0.046, 0.064], [0.024, 0.064], [0.05, 0.039], [0.086, 0.033], [0.09, 0.02], [0.09, 0.006]];
+  perfil.moveTo(P[0][0], P[0][1]); for (let i = 1; i < P.length; i++) perfil.lineTo(P[i][0], P[i][1]); perfil.closePath();
+  const ANCH_C = 0.096;
+  const geo = new THREE.ExtrudeGeometry(perfil, {depth: ANCH_C, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.003, bevelSegments: 3, curveSegments: 4});
+  geo.translate(0, 0, -ANCH_C / 2);
+  const cuerpo = new THREE.Mesh(geo, M.carro); cuerpo.position.y = Y_CUERPO; cuerpo.castShadow = true; cuerpo.receiveShadow = true;
+  carro.add(cuerpo);
+  // Ventanas laterales
+  const v = new THREE.Shape(); const VP = [[-0.06, 0.041], [-0.043, 0.06], [0.021, 0.06], [0.044, 0.041]];
+  v.moveTo(VP[0][0], VP[0][1]); VP.slice(1).forEach(q => v.lineTo(q[0], q[1])); v.closePath();
+  const gv = new THREE.ExtrudeGeometry(v, {depth: ANCH_C + 0.0095, bevelEnabled: false}); gv.translate(0, 0, -(ANCH_C + 0.0095) / 2);
+  const ventanas = new THREE.Mesh(gv, M.vidrio); ventanas.position.y = Y_CUERPO; carro.add(ventanas);
+  // Parabrisas y luneta (franjas sobre las caras inclinadas)
+  function vidrioInclinado(x0, y0, x1, y1) {
+    const len = Math.hypot(x1 - x0, y1 - y0);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(len * 0.86, ANCH_C * 0.86), M.vidrio);
+    const ang = Math.atan2(y1 - y0, x1 - x0);
+    m.position.set((x0 + x1) / 2, Y_CUERPO + (y0 + y1) / 2, 0);
+    m.rotation.set(-Math.PI / 2, 0, 0);
+    const n = new THREE.Vector3(-(y1 - y0), x1 - x0, 0).normalize();
+    m.lookAt(m.position.clone().add(n.multiplyScalar(x1 > x0 ? 1 : -1)));
+    m.position.add(new THREE.Vector3(-(y1 - y0), x1 - x0, 0).normalize().multiplyScalar(x1 > x0 ? 0.0042 : -0.0042));
+    carro.add(m);
+  }
+  vidrioInclinado(0.024, 0.064, 0.05, 0.039);
+  vidrioInclinado(-0.066, 0.038, -0.046, 0.064);
+  // Faros y luces de freno
+  for (const z of [-0.032, 0.032]) {
+    const f = caja(0.004, 0.008, 0.016, M.faro, false); f.position.set(0.0925, Y_CUERPO + 0.026, z); carro.add(f);
+    const s = caja(0.004, 0.008, 0.018, M.stop, false); s.position.set(-0.0925, Y_CUERPO + 0.028, z); carro.add(s);
+  }
+  // Ruedas con rin y marca para ver el giro
+  const gR = new THREE.CylinderGeometry(R_RUEDA, R_RUEDA, 0.016, 32); gR.rotateX(Math.PI / 2);
+  const gRin = new THREE.CylinderGeometry(R_RUEDA * 0.62, R_RUEDA * 0.62, 0.017, 24); gRin.rotateX(Math.PI / 2);
+  for (const xr of [-0.058, 0.058]) for (const zr of [-0.058, 0.058]) {
+    const w = new THREE.Group();
+    const llanta = new THREE.Mesh(gR, M.caucho); llanta.castShadow = true;
+    const rin = new THREE.Mesh(gRin, M.rin);
+    w.add(llanta, rin);
+    for (let k = 0; k < 5; k++) {
+      const rayo = caja(R_RUEDA * 1.1, 0.003, 0.0185, M.caucho, false);
+      rayo.rotation.z = k * Math.PI / 5; w.add(rayo);
+    }
+    const marca = caja(0.004, R_RUEDA * 0.5, 0.0186, new THREE.MeshStandardMaterial({color: 0xf3c623}), false);
+    marca.position.y = R_RUEDA * 0.36; w.add(marca);
+    w.position.set(xr, R_RUEDA, zr); carro.add(w); ruedas.push(w);
+  }
+  for (const xr of [-0.058, 0.058]) {
+    const eje = new THREE.Mesh(new THREE.CylinderGeometry(0.002, 0.002, 0.12, 8), M.metal);
+    eje.rotation.x = Math.PI / 2; eje.position.set(xr, R_RUEDA, 0); carro.add(eje);
+  }
+  // Mecanismo de frenado: tornillo con mariposa, lámina flexible y patín
+  const tornillo = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.0025, 0.085, 10), M.metal);
+  tornillo.position.set(0, Y_CUERPO + 0.046, 0); carro.add(tornillo);
+  const mariposa = new THREE.Group();
+  const cubo = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.008, 12), M.metal);
+  const ala1 = caja(0.022, 0.012, 0.003, M.metal, false); ala1.position.y = 0.004;
+  mariposa.add(cubo, ala1); mariposa.position.set(0, Y_CUERPO + 0.073, 0); carro.add(mariposa);
+  const lamina = caja(0.06, 0.0025, 0.05, M.lamina); lamina.position.set(0, Y_CUERPO - 0.002, 0); carro.add(lamina);
+  const patin = caja(0.042, 0.011, 0.05, M.patin); patin.position.set(0, 0.0015 + 0.0055, 0); carro.add(patin);
+  carro.userData.patin = patin;
+}
+pivote.add(carro);
+const COM_LOCAL_Y = 0.04;
+
+// ---------------------------------------------------------------------------
+// Vectores de fuerza (flechas 3D)
+// ---------------------------------------------------------------------------
+const grupoF = new THREE.Group(); scene.add(grupoF);
+const gCil = new THREE.CylinderGeometry(1, 1, 1, 12); gCil.translate(0, 0.5, 0);
+const gCono = new THREE.ConeGeometry(1, 1, 16); gCono.translate(0, 0.5, 0);
+function flecha(color, discontinua = false, radio = 0.0035) {
+  const g = new THREE.Group();
+  // depthTest = false: las flechas se dibujan siempre por encima (no las tapa la pista)
+  const mat = new THREE.MeshStandardMaterial({color, emissive: color, emissiveIntensity: 0.45, roughness: 0.5,
+    transparent: true, opacity: discontinua ? 0.9 : 1, depthTest: false, depthWrite: false});
+  if (discontinua) { mat.alphaMap = texGuion.clone(); mat.alphaMap.needsUpdate = true; mat.alphaTest = 0.5; }
+  const eje = new THREE.Mesh(gCil, mat); eje.scale.set(radio, 1, radio);
+  const punta = new THREE.Mesh(gCono, new THREE.MeshStandardMaterial({color, emissive: color, emissiveIntensity: 0.45, transparent: true, depthTest: false, depthWrite: false}));
+  eje.renderOrder = 20; punta.renderOrder = 21;
+  punta.scale.set(radio * 3.2, 0.028, radio * 3.2);
+  g.add(eje, punta); g.userData = {eje, punta, mat, discontinua};
+  grupoF.add(g);
+  return g;
+}
+const Y_UP = new THREE.Vector3(0, 1, 0);
+function ponerFlecha(f, origen, dir, largo) {
+  if (!(largo > 0.004)) { f.visible = false; return; }
+  f.visible = true;
+  f.position.copy(origen);
+  f.quaternion.setFromUnitVectors(Y_UP, dir.clone().normalize());
+  const lp = Math.min(0.028, largo * 0.45);
+  f.userData.eje.scale.y = largo - lp;
+  f.userData.punta.position.y = largo - lp;
+  f.userData.punta.scale.y = lp;
+  if (f.userData.discontinua) f.userData.mat.alphaMap.repeat.set(1, Math.max(1, (largo - lp) / 0.018));
+}
+const COL = {peso: '#d63a3a', normal: '#1f6fd1', freno: '#ef7d1a', par: '#8e44ad', perp: '#b07cc6', acel: '#1a9e8f'};
+const F = {
+  peso: flecha(COL.peso), normal: flecha(COL.normal), freno: flecha(COL.freno, false, 0.004),
+  par: flecha(COL.par, true, 0.0028), perp: flecha(COL.perp, true, 0.0028), acel: flecha(COL.acel, false, 0.0045),
+};
+
+// ---------------------------------------------------------------------------
+// Etiquetas HTML proyectadas
+// ---------------------------------------------------------------------------
+const capa = $('etiquetas');
+const etiquetas = [];
+function etiqueta(texto, clase, posFn, visFn = () => true, grupo = 'gen') {
+  const el = document.createElement('div'); el.className = 'lbl ' + (clase || ''); el.innerHTML = texto; capa.appendChild(el);
+  const e = {el, posFn, visFn, grupo}; etiquetas.push(e); return e;
+}
+const tmpV = new THREE.Vector3();
+function enPista(x, y = 0.0, z = 0) { const v = new THREE.Vector3(U(x), Y_TOP + y, z); return pivote.localToWorld(v); }
+const zLej = -(ANCHO / 2) - 0.005;
+etiqueta(`Aceleración · ${fmt(G.x_ini_fren, 2)} m`, 'zona', () => enPista(G.x_ini_fren / 2, 0.05, zLej));
+etiqueta(`Frenado · ${fmt(G.L_fren, 2)} m`, 'zona', () => enPista((G.x_ini_fren + G.x_fin_fren) / 2, 0.05, zLej));
+etiqueta(`Seguridad · ${fmt(L - G.x_fin_fren, 2)} m`, 'zona', () => enPista((G.x_fin_fren + L) / 2, 0.05, zLej));
+etiqueta('Inicio', '', () => enPista(D.eventos.x_inicio, 0.13, -(ANCHO / 2 - ANCHO_G) + 0.01));
+etiqueta('Inicio del frenado', '', () => enPista(G.x_ini_fren, 0.05, ANCHO / 2 + 0.02));
+if (D.eventos.x_det !== null && D.eventos.x_det !== undefined) {
+  etiqueta(`Detención calculada · d<sub>f</sub> = ${fmt(D.eventos.d_real, 3)} m`, 'oscuro', () => enPista(D.eventos.x_det, 0.17, -(ANCHO / 2 - ANCHO_G) + 0.01));
+} else {
+  const dteo = D.eventos.d_f_teo;
+  etiqueta(isFinite(dteo) && dteo !== null ? `No se detiene: requiere d<sub>f</sub> = ${fmt(dteo, 2)} m` : 'No se detiene: sin desaceleración neta',
+    'oscuro', () => enPista((G.x_ini_fren + G.x_fin_fren) / 2, 0.12, 0));
+}
+etiqueta('Tope final', '', () => enPista(L - 0.015, 0.075, 0));
+const lblTheta = etiqueta(`θ = ${fmt(D.theta_deg, 1)}° · p = ${fmt(D.pendiente_pct, 2)} %`, 'oscuro',
+  () => new THREE.Vector3(BISAGRA_X - R_ARCO - 0.02, BISAGRA_Y + Y_TOP + 0.02, zArco));
+etiqueta(`Soporte · h = ${fmt(L * Math.sin(TH) * 100, 1)} cm`, '', () => {
+  const p = new THREE.Vector3(U_SOPORTE, -0.02, ANCHO / 2 + 0.01); pivote.localToWorld(p); p.y = Math.max(0.03, p.y * 0.55); return p;
+});
+// Etiquetas de fuerzas (texto dinámico)
+const LF = {};
+for (const k of Object.keys(F)) LF[k] = etiqueta('', 'f', () => F[k].userData.tip || F[k].position, () => F[k].visible, 'fuerza');
+for (const k of Object.keys(F)) LF[k].el.style.color = COL[k];
+
+// ---------------------------------------------------------------------------
+// Controles de cámara orbital (propios, sin dependencias)
+// ---------------------------------------------------------------------------
+const orb = {target: new THREE.Vector3(), r: 2.5, az: 0, el: 0.3};
+const camObj = {pos: new THREE.Vector3(), tgt: new THREE.Vector3()};
+let camAnim = null;
+let modoCam = leer('cam', 'libre');
+let seguir = false;
+function centroPista() { return enPista(L / 2, 0.02, 0); }
+function presetCam(modo) {
+  const c = centroPista();
+  const ancho = lienzo.clientWidth || 800, alto = lienzo.clientHeight || 450;
+  const asp = ancho / alto;
+  // distancia para encuadrar un semiancho hw y una semialtura hh
+  const tv = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  const ajuste = (hw, hh) => Math.max(hw / (tv * asp), hh / tv);
+  if (modo === 'lateral') return {tgt: new THREE.Vector3(c.x, c.y + 0.06, 0), r: ajuste(1.08, 0.42), az: 0, el: 0.03};
+  if (modo === 'superior') return {tgt: new THREE.Vector3(c.x, 0.05, -0.02), r: ajuste(1.08, 0.36), az: 0, el: Math.PI / 2 - 0.001};
+  if (modo === 'seguir') return {tgt: posCarroMundo(), r: 0.75, az: 0.55, el: 0.42};
+  return {tgt: c.clone().add(new THREE.Vector3(0.0, -0.05, 0)), r: ajuste(1.3, 0.62), az: 0.6, el: 0.46};
+}
+function aplicarOrbita() {
+  const ce = Math.cos(orb.el);
+  camera.position.set(orb.target.x + orb.r * ce * Math.sin(orb.az), orb.target.y + orb.r * Math.sin(orb.el), orb.target.z + orb.r * ce * Math.cos(orb.az));
+  camera.lookAt(orb.target);
+}
+function irCam(modo, instantaneo = false) {
+  modoCam = modo; guardar('cam', modo); seguir = modo === 'seguir';
+  document.querySelectorAll('[data-cam]').forEach(b => b.classList.toggle('on', b.dataset.cam === modo));
+  const p = presetCam(modo);
+  if (instantaneo) { orb.target.copy(p.tgt); orb.r = p.r; orb.az = p.az; orb.el = p.el; aplicarOrbita(); return; }
+  camAnim = {t0: performance.now(), dur: 650, de: {tgt: orb.target.clone(), r: orb.r, az: orb.az, el: orb.el}, a: p};
+}
+function pasoCamara(now) {
+  if (!camAnim) return;
+  let k = Math.min(1, (now - camAnim.t0) / camAnim.dur); const e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+  const a = camAnim.a, d = camAnim.de;
+  if (seguir) a.tgt = posCarroMundo();
+  orb.target.lerpVectors(d.tgt, a.tgt, e); orb.r = d.r + (a.r - d.r) * e; orb.az = d.az + (a.az - d.az) * e; orb.el = d.el + (a.el - d.el) * e;
+  if (k >= 1) camAnim = null;
+}
+const punteros = new Map(); let pinchDist = 0;
+lienzo.addEventListener('pointerdown', e => { lienzo.setPointerCapture(e.pointerId); punteros.set(e.pointerId, {x: e.clientX, y: e.clientY, b: e.button, s: e.shiftKey}); camAnim = null;
+  if (punteros.size === 2) { const [a, b] = [...punteros.values()]; pinchDist = Math.hypot(a.x - b.x, a.y - b.y); } });
+lienzo.addEventListener('pointerup', e => punteros.delete(e.pointerId));
+lienzo.addEventListener('pointercancel', e => punteros.delete(e.pointerId));
+lienzo.addEventListener('contextmenu', e => e.preventDefault());
+function marcarLibre() { if (modoCam !== 'libre' && modoCam !== 'seguir') { modoCam = 'libre'; guardar('cam', 'libre'); document.querySelectorAll('[data-cam]').forEach(b => b.classList.toggle('on', b.dataset.cam === 'libre')); } }
+lienzo.addEventListener('pointermove', e => {
+  const p = punteros.get(e.pointerId); if (!p) return;
+  const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+  if (punteros.size === 2) {
+    const [a, b] = [...punteros.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (pinchDist > 0) orb.r = THREE.MathUtils.clamp(orb.r * pinchDist / d, 0.2, 7); pinchDist = d; marcarLibre(); return;
+  }
+  if (p.b === 2 || p.b === 1 || p.s || e.shiftKey) {
+    // desplazamiento (pan)
+    const esc = orb.r * 0.0011;
+    const der = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+    const arr = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+    orb.target.addScaledVector(der, -dx * esc).addScaledVector(arr, dy * esc);
+    if (seguir) { seguir = false; modoCam = 'libre'; }
+  } else {
+    orb.az -= dx * 0.006; orb.el = THREE.MathUtils.clamp(orb.el + dy * 0.005, -0.05, Math.PI / 2 - 0.001);
+  }
+  marcarLibre();
+});
+lienzo.addEventListener('wheel', e => { e.preventDefault(); orb.r = THREE.MathUtils.clamp(orb.r * Math.exp(e.deltaY * 0.0011), 0.2, 7); camAnim = null; marcarLibre(); }, {passive: false});
+document.querySelectorAll('[data-cam]').forEach(b => b.addEventListener('click', () => irCam(b.dataset.cam)));
+
+// ---------------------------------------------------------------------------
+// Reproducción: interpolación de las muestras de Python
+// ---------------------------------------------------------------------------
+function indice(t) {
+  if (t <= tray.t[0]) return 0;
+  if (t >= tray.t[N - 1]) return N - 1;
+  let lo = 0, hi = N - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (tray.t[m] <= t) lo = m; else hi = m; }
+  return lo;
+}
+function estadoEn(t) {
+  const i = indice(t);
+  const dt = Math.max(0, t - tray.t[i]);
+  const a = tray.a[i];
+  let x = tray.x[i], v = tray.v[i];
+  if (i < N - 1) {
+    // Tramo de aceleración constante: x = xi + vi·dt + ½·a·dt² (sin extrapolar)
+    x = Math.min(tray.x[i] + tray.v[i] * dt + 0.5 * a * dt * dt, tray.x[i + 1]);
+    x = Math.max(x, tray.x[i]);
+    v = Math.max(0, tray.v[i] + a * dt);
+  }
+  return {i, t, x, v, a, fase: tray.fase[i], F: tray.F[i]};
+}
+
+const NOMBRES = {0: 'Preparado', 1: 'Acelerando', 2: 'Frenando', 3: 'Excede longitud disponible', 4: 'Detenido', 5: 'Alcanza el tope'};
+const COLORES = {0: '#5f6b7a', 1: '#1f6fd1', 2: '#ef7d1a', 3: '#d63a3a', 4: '#2e9d5b', 5: '#d63a3a'};
+function textoEstado(s, enCurso) {
+  if (D.resultado === 'SIN_MOVIMIENTO') return ['Preparado · sin aceleración neta', '#5f6b7a'];
+  if (!enCurso && s.t <= 1e-9) return ['Preparado', '#5f6b7a'];
+  if (s.fase === 2 && D.resultado === 'FRENADO_INSUFICIENTE') return ['Frenado insuficiente', '#d63a3a'];
+  if (s.fase === 4 && D.resultado === 'EXCEDE_LONGITUD') return ['Excede longitud · detenido por rodadura', '#d63a3a'];
+  if (s.fase === 5 && D.resultado === 'FRENADO_INSUFICIENTE') return ['Frenado insuficiente · alcanza el tope', '#d63a3a'];
+  if (s.fase === 5) return ['Excede longitud · alcanza el tope', '#d63a3a'];
+  return [NOMBRES[s.fase] || '—', COLORES[s.fase] || '#5f6b7a'];
+}
+
+let tSim = 0, reproduciendo = false, velocidad = parseFloat(leer('vel', 1)) || 1, ultimo = null, iniciado = false;
+let mostrarF = !!leer('fuerzas', false), mostrarEtiq = leer('etiq', true) !== false;
+$('vel').value = String(velocidad);
+if (!$('vel').value) { $('vel').value = '1'; velocidad = 1; }
+
+function posCarroMundo() { const p = new THREE.Vector3(carro.position.x, COM_LOCAL_Y + Y_TOP, 0); return pivote.localToWorld(p); }
+
+const dirBaja = new THREE.Vector3(), dirNormal = new THREE.Vector3();
+function actualizarFuerzas(s, th) {
+  dirBaja.set(Math.cos(th), -Math.sin(th), 0);     // descenso por la pista
+  dirNormal.set(Math.sin(th), Math.cos(th), 0);     // normal hacia afuera
+  const f = D.fuerzas;
+  const k = 0.22 / f.peso;                          // escala: mg ↦ 0,22 m
+  const com = posCarroMundo();
+  const contacto = pivote.localToWorld(new THREE.Vector3(carro.position.x - 0.02, Y_TOP + 0.006, 0));
+  const tip = (o, d, l) => o.clone().addScaledVector(d.clone().normalize(), l + 0.012);
+  ponerFlecha(F.peso, com, new THREE.Vector3(0, -1, 0), f.peso * k);
+  F.peso.userData.tip = tip(com, new THREE.Vector3(0, -1, 0), f.peso * k);
+  ponerFlecha(F.normal, com, dirNormal, f.normal * k);
+  F.normal.userData.tip = tip(com, dirNormal, f.normal * k).add(new THREE.Vector3(0, 0.02, 0));
+  ponerFlecha(F.par, com, dirBaja, f.par * k);
+  F.par.userData.tip = tip(com, dirBaja, f.par * k).add(new THREE.Vector3(0.02, 0.02, 0));
+  const dPerp = dirNormal.clone().negate();
+  ponerFlecha(F.perp, com.clone().add(new THREE.Vector3(0, 0, 0.012)), dPerp, f.perp * k);
+  F.perp.userData.tip = tip(com, dPerp, f.perp * k).add(new THREE.Vector3(0.07, -0.01, 0));
+  // Fuerza resistente: se opone al movimiento (o al deslizamiento inminente en reposo)
+  const Fr = s.F;
+  const dirF = dirBaja.clone().negate();
+  ponerFlecha(F.freno, contacto, dirF, Fr * k);
+  F.freno.userData.tip = tip(contacto, dirF, Fr * k).add(new THREE.Vector3(0, 0.01, 0));
+  // Aceleración (cinemática, no es una fuerza): dibujada sobre el carrito
+  const pA = com.clone().addScaledVector(dirNormal, 0.085);
+  const la = Math.min(Math.abs(s.a) * 0.06, 0.35);
+  const dA = s.a >= 0 ? dirBaja.clone() : dirBaja.clone().negate();
+  ponerFlecha(F.acel, pA, dA, la);
+  F.acel.userData.tip = tip(pA, dA, la).add(new THREE.Vector3(0, 0.012, 0));
+  if (s.a === 0) F.acel.visible = false;
+
+  let nombreF = 'F<sub>b</sub> (patín)';
+  if (s.fase === 1 || s.fase === 3) nombreF = 'F<sub>r</sub> (rodadura)';
+  if (s.fase === 4 || s.fase === 0) nombreF = 'f<sub>s</sub> (estática)';
+  LF.peso.el.innerHTML = `mg = ${fmt(f.peso, 2)} N`;
+  LF.normal.el.innerHTML = `N = ${fmt(f.normal, 2)} N`;
+  LF.par.el.innerHTML = `mg·sen θ = ${fmt(f.par, 3)} N`;
+  LF.perp.el.innerHTML = `mg·cos θ = ${fmt(f.perp, 2)} N`;
+  LF.freno.el.innerHTML = `${nombreF} = ${fmt(Fr, 3)} N`;
+  LF.acel.el.innerHTML = `a = ${fmt(s.a, 2)} m/s²`;
+  grupoF.visible = mostrarF;
+}
+
+function actualizar(t) {
+  const s = estadoEn(t);
+  const x = s.x;
+  carro.position.set(U(x), Y_TOP, 0);
+  for (const w of ruedas) w.rotation.z = -(x - D.eventos.x_inicio) / R_RUEDA;   // giro visual coherente
+  const frenando = s.fase === 2;
+  M.stop.emissiveIntensity = frenando ? 2.2 : 0.15;
+  M.patin.emissiveIntensity = frenando ? 0.35 : 0;
+  // franjas del recorrido
+  const x0 = D.eventos.x_inicio;
+  franjaRecorrido(recAcel, x0, Math.min(x, G.x_ini_fren));
+  franjaRecorrido(recFren, Math.max(x0, G.x_ini_fren), Math.max(Math.min(x, G.x_fin_fren), Math.max(x0, G.x_ini_fren)));
+  actualizarFuerzas(s, pivote.rotation.z * -1);
+  // HUD
+  const [txt, col] = textoEstado(s, iniciado);
+  const est = $('estado'); est.textContent = txt; est.style.background = col;
+  $('vT').textContent = fmt(t, 3) + ' s';
+  $('vX').textContent = fmt(x, 3) + ' m';
+  $('vD').textContent = x >= G.x_ini_fren ? fmt(Math.min(x, G.x_fin_fren) - G.x_ini_fren, 3) + ' m' : '0,000 m';
+  $('vV').textContent = fmt(s.v, 3) + ' m/s';
+  $('vA').textContent = fmtS(s.a, 3) + ' m/s²';
+  $('vF').textContent = fmt(s.F, 3) + ' N';
+  $('tlbl').textContent = `${fmt(t, 3)} / ${fmt(T_TOTAL, 3)} s`;
+  if (!arrastrando) $('tiempo').value = String(Math.round(1000 * t / (T_TOTAL || 1)));
+  cursorGraf = s;
+}
+
+// ---------------------------------------------------------------------------
+// Mini-gráficas sincronizadas (x, v, a contra t)
+// ---------------------------------------------------------------------------
+let cursorGraf = null;
+const GRAF = [
+  {id: 'gX', clave: 'x', tit: 'Posición x(t)', uni: 'm', col: '#1f6fd1'},
+  {id: 'gV', clave: 'v', tit: 'Velocidad v(t)', uni: 'm/s', col: '#2e9d5b'},
+  {id: 'gA', clave: 'a', tit: 'Aceleración a(t)', uni: 'm/s²', col: '#d63a3a', escalon: true},
+];
+function bonito(min, max, n = 4) {
+  const r = max - min || 1; const paso0 = r / n; const mag = Math.pow(10, Math.floor(Math.log10(paso0)));
+  const paso = [1, 2, 2.5, 5, 10].map(k => k * mag).find(p => p >= paso0) || paso0;
+  const ini = Math.floor(min / paso) * paso, fin = Math.ceil(max / paso) * paso; const out = [];
+  for (let v = ini; v <= fin + paso * 1e-6; v += paso) out.push(+v.toFixed(10)); return out;
+}
+function decs(paso) { return Math.max(0, Math.min(3, -Math.floor(Math.log10(paso) + 1e-9))); }
+function dibujarGraf(g) {
+  const c = $(g.id); const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const W = c.clientWidth, H = c.clientHeight; if (!W || !H) return;
+  if (c.width !== W * dpr || c.height !== H * dpr) { c.width = W * dpr; c.height = H * dpr; }
+  const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
+  const datos = tray[g.clave];
+  let ymin = Math.min(0, ...datos), ymax = Math.max(0, ...datos);
+  if (ymax - ymin < 1e-6) { ymax += 0.5; ymin -= 0.5; }
+  const yt = bonito(ymin, ymax, 4); ymin = Math.min(ymin, yt[0]); ymax = Math.max(ymax, yt[yt.length - 1]);
+  const xt = bonito(0, T_TOTAL, 5);
+  const ml = 44, mr = 10, mt = 22, mb = 24; const pw = W - ml - mr, ph = H - mt - mb;
+  const X = t => ml + pw * t / (T_TOTAL || 1), Y = v => mt + ph * (1 - (v - ymin) / (ymax - ymin || 1));
+  g.X = X; g.ml = ml; g.pw = pw;
+  x.font = '600 11.5px Segoe UI, Arial'; x.fillStyle = '#0b2545'; x.textAlign = 'left'; x.fillText(`${g.tit}  [${g.uni}]`, ml, 14);
+  x.font = '10px Segoe UI, Arial'; x.strokeStyle = '#e3e9f1'; x.lineWidth = 1; x.fillStyle = '#5f6b7a';
+  const pasoY = yt.length > 1 ? yt[1] - yt[0] : 1;
+  x.textAlign = 'right';
+  for (const v of yt) { if (v < ymin - 1e-9 || v > ymax + 1e-9) continue; const yy = Y(v); x.beginPath(); x.moveTo(ml, yy); x.lineTo(ml + pw, yy); x.stroke(); x.fillText(fmt(v, decs(pasoY)), ml - 5, yy + 3); }
+  x.textAlign = 'center';
+  const pasoX = xt.length > 1 ? xt[1] - xt[0] : 1;
+  for (const v of xt) { if (v > T_TOTAL + 1e-9) continue; const xx = X(v); x.beginPath(); x.moveTo(xx, mt); x.lineTo(xx, mt + ph); x.stroke(); x.fillText(fmt(v, decs(pasoX)), xx, mt + ph + 13); }
+  x.fillText('t (s)', ml + pw - 12, H - 1);
+  // Eje cero
+  x.strokeStyle = '#9aa5b4'; x.beginPath(); x.moveTo(ml, Y(0)); x.lineTo(ml + pw, Y(0)); x.stroke();
+  // Eventos
+  const ev = D.eventos;
+  const linea = (t, col, txt, fila) => { if (t === null || t === undefined || !isFinite(t)) return; x.save(); x.setLineDash([4, 3]); x.strokeStyle = col; x.beginPath(); x.moveTo(X(t), mt); x.lineTo(X(t), mt + ph); x.stroke(); x.restore();
+    x.fillStyle = col; x.font = '600 9.5px Segoe UI'; x.textAlign = 'left'; x.fillText(txt, Math.min(X(t) + 3, ml + pw - 56), mt + 9 + 11 * fila); };
+  linea(ev.t_ini_fren, '#ef7d1a', 'inicio freno', 0);
+  linea(ev.t_det, '#d63a3a', 'detención', 1);
+  linea(ev.t_tope, '#d63a3a', 'tope', 1);
+  // Curva
+  x.strokeStyle = g.col; x.lineWidth = 2; x.beginPath();
+  for (let i = 0; i < N; i++) {
+    const xx = X(tray.t[i]), yy = Y(datos[i]);
+    if (i === 0) x.moveTo(xx, yy);
+    else if (g.escalon) { x.lineTo(xx, Y(datos[i - 1])); x.lineTo(xx, yy); }
+    else x.lineTo(xx, yy);
+  }
+  x.stroke();
+  // Cursor sincronizado
+  if (cursorGraf) {
+    const s = cursorGraf; const xx = X(s.t), yy = Y(s[g.clave]);
+    x.strokeStyle = 'rgba(11,37,69,.55)'; x.lineWidth = 1; x.beginPath(); x.moveTo(xx, mt); x.lineTo(xx, mt + ph); x.stroke();
+    x.fillStyle = g.col; x.beginPath(); x.arc(xx, yy, 4.5, 0, Math.PI * 2); x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.stroke();
+    x.fillStyle = '#0b2545'; x.font = '600 10.5px Segoe UI'; x.textAlign = xx > ml + pw - 70 ? 'right' : 'left';
+    x.fillText(fmt(s[g.clave], 3), xx + (x.textAlign === 'right' ? -7 : 7), Math.max(yy - 6, mt + 10));
+  }
+}
+for (const g of GRAF) {
+  const c = $(g.id); let activo = false;
+  const buscar = (e) => { const r = c.getBoundingClientRect(); if (!g.X) return; const t = (e.clientX - r.left - g.ml) / g.pw * T_TOTAL; pausar(); tSim = THREE.MathUtils.clamp(t, 0, T_TOTAL); iniciado = true; actualizar(tSim); };
+  c.addEventListener('pointerdown', e => { activo = true; c.setPointerCapture(e.pointerId); buscar(e); });
+  c.addEventListener('pointermove', e => { if (activo) buscar(e); });
+  c.addEventListener('pointerup', () => activo = false);
+}
+
+// ---------------------------------------------------------------------------
+// Botones
+// ---------------------------------------------------------------------------
+function textoPausa() { $('bPausa').textContent = reproduciendo ? '⏸ Pausar' : '▶ Reanudar'; $('bPausa').disabled = !iniciado || tSim >= T_TOTAL; }
+function reproducir() { if (inclinando) return; if (tSim >= T_TOTAL) tSim = 0; reproduciendo = true; iniciado = true; ultimo = null; guardarS('play', true); textoPausa(); }
+function pausar() { reproduciendo = false; guardarS('play', false); textoPausa(); }
+$('bIniciar').onclick = () => { tSim = 0; reproducir(); };
+$('bPausa').onclick = () => { if (reproduciendo) pausar(); else reproducir(); };
+$('bReiniciar').onclick = () => { pausar(); tSim = 0; iniciado = false; actualizar(0); textoPausa(); };
+$('bOtra').onclick = () => { tSim = 0; reproducir(); };
+let arrastrando = false;
+$('tiempo').addEventListener('input', e => { arrastrando = true; pausar(); iniciado = true; tSim = T_TOTAL * (+e.target.value) / 1000; actualizar(tSim); });
+$('tiempo').addEventListener('change', () => { arrastrando = false; });
+$('vel').addEventListener('change', e => { velocidad = parseFloat(e.target.value) || 1; guardar('vel', velocidad); });
+function pintarBotones() {
+  $('bFuerzas').textContent = mostrarF ? 'Ocultar fuerzas' : 'Mostrar fuerzas';
+  $('bFuerzas').classList.toggle('on', mostrarF);
+  $('bEtiq').classList.toggle('on', mostrarEtiq);
+  $('leyenda').style.display = mostrarF ? 'block' : 'none';
+}
+$('bFuerzas').onclick = () => { mostrarF = !mostrarF; guardar('fuerzas', mostrarF); pintarBotones(); actualizar(tSim); };
+$('bEtiq').onclick = () => { mostrarEtiq = !mostrarEtiq; guardar('etiq', mostrarEtiq); pintarBotones(); };
+window.addEventListener('keydown', e => { if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT') { e.preventDefault(); $('bPausa').click(); } });
+
+// Leyenda de fuerzas
+$('leyenda').innerHTML = `
+  <div style="font-weight:700;margin-bottom:3px">Fuerzas reales</div>
+  <div class="it"><span class="sw" style="background:${COL.peso}"></span><span>Peso mg</span></div>
+  <div class="it"><span class="sw" style="background:${COL.normal}"></span><span>Normal N</span></div>
+  <div class="it"><span class="sw" style="background:${COL.freno}"></span><span>Resistencia F<sub>b</sub> / F<sub>r</sub> / f<sub>s</sub></span></div>
+  <div style="font-weight:700;margin:4px 0 3px">Componentes de mg (no se suman a mg)</div>
+  <div class="it"><span class="sw dash" style="color:${COL.par}"></span><span>mg·sen θ (paralela)</span></div>
+  <div class="it"><span class="sw dash" style="color:${COL.perp}"></span><span>mg·cos θ (perpendicular)</span></div>
+  <div style="font-weight:700;margin:4px 0 3px">Cinemática</div>
+  <div class="it"><span class="sw" style="background:${COL.acel}"></span><span>Aceleración a (no es fuerza)</span></div>
+  <div style="color:#b9cde6;margin-top:3px;font-size:10.5px">Escala: mg ↦ 22 cm</div>`;
+
+// Aviso de resultado
+if (D.resultado !== 'DETENIDO') {
+  const av = $('aviso'); av.style.display = 'block'; av.textContent = D.mensaje;
+  if (D.resultado === 'SIN_MOVIMIENTO') av.style.background = 'rgba(95,107,122,.95)';
+}
+
+// Datos fijos del HUD
+$('vTh').textContent = `${fmt(D.theta_deg, 1)}° · ${fmt(D.pendiente_pct, 2)} %`;
+$('vM').textContent = `${fmt(D.masa, 2)} kg · ${D.modelo}`;
+
+// ---------------------------------------------------------------------------
+// Redimensionamiento y bucle principal
+// ---------------------------------------------------------------------------
+function redimensionar() {
+  const w = lienzo.clientWidth, h = lienzo.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+new ResizeObserver(() => { redimensionar(); for (const g of GRAF) dibujarGraf(g); }).observe(document.body);
+
+// Animación de inclinación desde el ángulo anterior (cuando cambia θ)
+const thPrev = leerS('theta', null);
+let inclinando = null;
+if (thPrev !== null && Math.abs(thPrev - D.theta_deg) > 1e-6) {
+  inclinando = {t0: performance.now(), dur: 900, de: thPrev * Math.PI / 180, a: TH};
+  actualizarSoporte(inclinando.de);
+} else actualizarSoporte(TH);
+guardarS('theta', D.theta_deg);
+
+redimensionar();
+irCam(modoCam, true);
+pintarBotones();
+actualizar(0);
+textoPausa();
+const autoplay = leerS('play', false) || D.autoplay;
+
+function proyectarEtiquetas() {
+  const w = lienzo.clientWidth, h = lienzo.clientHeight;
+  for (const e of etiquetas) {
+    const vis = (e.grupo === 'fuerza' ? mostrarF : mostrarEtiq) && e.visFn();
+    if (!vis) { e.el.style.display = 'none'; continue; }
+    const p = e.posFn(); tmpV.copy(p).project(camera);
+    if (tmpV.z > 1 || tmpV.z < -1) { e.el.style.display = 'none'; continue; }
+    e.el.style.display = 'block';
+    e.el.style.left = ((tmpV.x * 0.5 + 0.5) * w).toFixed(1) + 'px';
+    e.el.style.top = ((-tmpV.y * 0.5 + 0.5) * h).toFixed(1) + 'px';
+  }
+}
+
+let frame = 0;
+function bucle(now) {
+  requestAnimationFrame(bucle);
+  if (inclinando) {
+    const k = Math.min(1, (now - inclinando.t0) / inclinando.dur); const e = 1 - Math.pow(1 - k, 3);
+    const th = inclinando.de + (inclinando.a - inclinando.de) * e;
+    actualizarSoporte(th); lblTheta.el.innerHTML = `θ = ${fmt(th * 180 / Math.PI, 1)}° · p = ${fmt(100 * Math.tan(th), 2)} %`;
+    actualizar(tSim);
+    if (k >= 1) { inclinando = null; lblTheta.el.innerHTML = `θ = ${fmt(D.theta_deg, 1)}° · p = ${fmt(D.pendiente_pct, 2)} %`; actualizarSoporte(TH); if (autoplay) reproducir(); }
+  }
+  if (reproduciendo) {
+    if (ultimo !== null) tSim += (now - ultimo) / 1000 * velocidad;
+    ultimo = now;
+    if (tSim >= T_TOTAL) { tSim = T_TOTAL; reproduciendo = false; guardarS('play', false); textoPausa(); }
+    actualizar(tSim);
+  }
+  pasoCamara(now);
+  if (seguir && !camAnim) { const p = posCarroMundo(); orb.target.lerp(p, 0.15); }
+  aplicarOrbita();
+  renderer.render(scene, camera);
+  proyectarEtiquetas();
+  if (reproduciendo || frame % 6 === 0 || inclinando) for (const g of GRAF) dibujarGraf(g);
+  frame++;
+}
+requestAnimationFrame(bucle);
+if (autoplay && !inclinando) reproducir();
+window.__sim = {estadoEn, actualizar, get t() { return tSim; }, set t(v) { tSim = v; actualizar(v); }, carro, pivote, THREE, D};
+</script>
+</body>
+</html>
